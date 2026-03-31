@@ -128,19 +128,19 @@ static int accel_3s_handle_event(const struct device *dev,
     }
 
     /* Compute velocity in counts per second */
-    uint32_t dt_ms = 1;
-    if (data->last_time_ms[idx] > 0 && now > data->last_time_ms[idx]) {
-        int64_t diff = now - data->last_time_ms[idx];
-        if (diff > 100) {
-            diff = 100; /* cap stale intervals */
+    uint32_t factor;
+    if (data->last_time_ms[idx] == 0 || now <= data->last_time_ms[idx] ||
+        (now - data->last_time_ms[idx]) > 150) {
+        /* First event or returning from idle: use mid-factor (no decel/accel) */
+        factor = cfg->mid_factor;
+    } else {
+        uint32_t dt_ms = (uint32_t)(now - data->last_time_ms[idx]);
+        if (dt_ms == 0) {
+            dt_ms = 1;
         }
-        dt_ms = (uint32_t)diff;
+        uint32_t cps = (uint32_t)((uint64_t)abs(raw) * 1000ULL / dt_ms);
+        factor = compute_factor(cfg, cps);
     }
-
-    uint32_t cps = (uint32_t)((uint64_t)abs(raw) * 1000ULL / dt_ms);
-
-    /* Get factor from 3-stage curve */
-    uint32_t factor = compute_factor(cfg, cps);
 
     /* Apply factor to raw input */
     if (cfg->track_remainders) {

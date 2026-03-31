@@ -1,0 +1,12 @@
+DT_COMPAT_ZMK_INPUT_PROCESSOR_3STAGE := zmk,input-processor-3stage
+
+config ZMK_INPUT_PROCESSOR_3STAGE
+    bool "Enable 3-stage pointing acceleration"
+    default $(dt_compat_enabled,$(DT_COMPAT_ZMK_INPUT_PROCESSOR_3STAGE))
+    depends on ZMK_POINTING
+    depends on INPUT
+    help
+      Enables 3-stage velocity-based acceleration for relative pointer input.
+      Stage 1: deceleration (slow speed → precision)
+      Stage 2: flat zone (normal speed → 1:1)
+      Stage 3: acceleration (fast speed → amplified)

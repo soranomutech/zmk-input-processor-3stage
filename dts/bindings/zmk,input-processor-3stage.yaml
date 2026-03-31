@@ -1,0 +1,74 @@
+# Copyright (c) 2025 soranomutech
+# SPDX-License-Identifier: MIT
+
+description: |
+  3-stage pointing acceleration input processor.
+  Stage 1 (0 to speed-low): deceleration zone, factor ramps from min-factor to mid-factor.
+  Stage 2 (speed-low to speed-high): flat zone at mid-factor.
+  Stage 3 (speed-high to speed-max): acceleration zone, factor ramps from mid-factor to max-factor.
+
+compatible: "zmk,input-processor-3stage"
+
+include: ip_zero_param.yaml
+
+properties:
+  input-type:
+    type: int
+    required: true
+    description: Input event type (e.g. INPUT_EV_REL)
+
+  min-factor:
+    type: int
+    required: true
+    description: |
+      Factor at speed=0 (scaled x1000). E.g. 560 = 0.56x.
+      Used for precision at very slow trackball movements.
+
+  mid-factor:
+    type: int
+    required: true
+    description: |
+      Factor in the flat zone (scaled x1000). E.g. 1000 = 1.0x.
+      This is the "normal" speed factor.
+
+  max-factor:
+    type: int
+    required: true
+    description: |
+      Factor at speed-max (scaled x1000). E.g. 3000 = 3.0x.
+      Maximum acceleration for fast movements.
+
+  speed-low:
+    type: int
+    required: true
+    description: |
+      End of deceleration zone (counts per second).
+      Below this speed, factor interpolates from min-factor to mid-factor.
+      Set to 0 to disable deceleration zone.
+
+  speed-high:
+    type: int
+    required: true
+    description: |
+      Start of acceleration zone (counts per second).
+      Between speed-low and speed-high, factor stays at mid-factor.
+      Above this speed, factor interpolates from mid-factor to max-factor.
+
+  speed-max:
+    type: int
+    required: true
+    description: |
+      Speed at which max-factor is reached (counts per second).
+      Movements faster than this use max-factor.
+
+  deceleration-exponent:
+    type: int
+    default: 1
+    description: |
+      Curve shape for deceleration zone. 1=linear, 2=quadratic, etc.
+
+  acceleration-exponent:
+    type: int
+    default: 2
+    description: |
+      Curve shape for acceleration zone. 1=linear, 2=quadratic, etc.

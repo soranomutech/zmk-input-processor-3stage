@@ -1,0 +1,6 @@
+name: zmk-input-processor-3stage
+build:
+  cmake: .
+  kconfig: Kconfig
+  settings:
+    dts_root: .

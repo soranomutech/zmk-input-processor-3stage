@@ -1,0 +1,16 @@
+#include <zephyr/dt-bindings/input/input-event-codes.h>
+
+/ {
+    pointer_accel_3s: pointer_accel_3s {
+        compatible = "zmk,input-processor-3stage";
+        status = "disabled";
+        #input-processor-cells = <0>;
+        input-type = <INPUT_EV_REL>;
+        min-factor = <1000>;
+        mid-factor = <1000>;
+        max-factor = <1000>;
+        speed-low = <0>;
+        speed-high = <0>;
+        speed-max = <6000>;
+    };
+};

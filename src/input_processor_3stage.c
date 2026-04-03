@@ -40,6 +40,7 @@ struct accel_3s_config {
 struct accel_3s_data {
     int64_t last_time_ms[2];   /* per-axis timestamp (X=0, Y=1)     */
     int16_t remainders[2];     /* fractional remainder (x1000)       */
+    int8_t  last_sign[2];      /* last movement direction per axis   */
 };
 
 /* ── Integer power: (t/1000)^exp * 1000 ─────────────────────── */
@@ -127,6 +128,14 @@ static int accel_3s_handle_event(const struct device *dev,
         return 0;
     }
 
+    /* Reset remainder on direction change */
+    int8_t sign = (raw > 0) ? 1 : -1;
+    if (cfg->track_remainders && data->last_sign[idx] != 0 &&
+        data->last_sign[idx] != sign) {
+        data->remainders[idx] = 0;
+    }
+    data->last_sign[idx] = sign;
+
     /* Compute velocity in counts per second */
     uint32_t factor;
     if (data->last_time_ms[idx] == 0 || now <= data->last_time_ms[idx] ||
@@ -151,12 +160,6 @@ static int accel_3s_handle_event(const struct device *dev,
 
         if (out > 32767)  out = 32767;
         if (out < -32768) out = -32768;
-
-        /* Guarantee minimum 1 unit when raw != 0 */
-        if (out == 0) {
-            out = (raw > 0) ? 1 : -1;
-            rem = 0;
-        }
 
         event->value = out;
         data->remainders[idx] = (int16_t)rem;

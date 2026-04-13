@@ -2,10 +2,14 @@
 # SPDX-License-Identifier: MIT
 
 description: |
-  3-stage pointing acceleration input processor.
-  Stage 1 (0 to speed-low): deceleration zone, factor ramps from min-factor to mid-factor.
-  Stage 2 (speed-low to speed-high): flat zone at mid-factor.
-  Stage 3 (speed-high to speed-max): acceleration zone, factor ramps from mid-factor to max-factor.
+  Pointing acceleration input processor (up to 5 zones).
+  Zone A (0 to speed-flat-low): flat at min-factor (optional low flat zone).
+  Zone B (speed-flat-low to speed-low): factor ramps from min-factor to mid-factor.
+  Zone C (speed-low to speed-high): flat at mid-factor.
+  Zone D (speed-high to speed-max): factor ramps from mid-factor to max-factor.
+  Zone E (above speed-max): flat at max-factor.
+  If speed-flat-low is 0 (default), Zone A is disabled and behavior matches
+  the original 3-zone (decel / flat / accel) curve.
 
 compatible: "zmk,input-processor-3stage"
 
@@ -38,12 +42,20 @@ properties:
       Factor at speed-max (scaled x1000). E.g. 3000 = 3.0x.
       Maximum acceleration for fast movements.
 
+  speed-flat-low:
+    type: int
+    default: 0
+    description: |
+      End of the low flat zone (counts per second).
+      Below this speed, factor stays constant at min-factor.
+      Set to 0 (default) to disable the low flat zone and keep 3-zone behavior.
+
   speed-low:
     type: int
     required: true
     description: |
       End of deceleration zone (counts per second).
-      Below this speed, factor interpolates from min-factor to mid-factor.
+      Between speed-flat-low and this, factor interpolates from min-factor to mid-factor.
       Set to 0 to disable deceleration zone.
 
   speed-high:

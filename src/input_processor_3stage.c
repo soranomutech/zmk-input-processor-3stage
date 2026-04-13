@@ -4,10 +4,15 @@
  *
  * 3-Stage Pointing Acceleration Input Processor for ZMK
  *
- * Implements a 3-zone acceleration curve:
- *   Zone 1 (0 → speed_low):           deceleration, min_factor → mid_factor
- *   Zone 2 (speed_low → speed_high):  flat at mid_factor
- *   Zone 3 (speed_high → speed_max):  acceleration, mid_factor → max_factor
+ * Implements up to a 5-zone acceleration curve:
+ *   Zone A (0 → speed_flat_low):       flat at min_factor           (optional)
+ *   Zone B (speed_flat_low → speed_low): min_factor → mid_factor
+ *   Zone C (speed_low → speed_high):   flat at mid_factor
+ *   Zone D (speed_high → speed_max):   mid_factor → max_factor
+ *   Zone E (speed_max →):              flat at max_factor
+ *
+ * If speed_flat_low == 0, Zone A is disabled and the curve behaves as the
+ * original 3-zone (decel/flat/accel) configuration.
  */
 
 #include <zephyr/kernel.h>
@@ -28,6 +33,7 @@ struct accel_3s_config {
     uint16_t min_factor;       /* factor at speed=0 (x1000)         */
     uint16_t mid_factor;       /* factor in flat zone (x1000)       */
     uint16_t max_factor;       /* factor at speed_max (x1000)       */
+    uint32_t speed_flat_low;   /* end of low flat zone (cps, 0=off) */
     uint32_t speed_low;        /* end of deceleration zone (cps)    */
     uint32_t speed_high;       /* start of acceleration zone (cps)  */
     uint32_t speed_max;        /* speed at which max_factor reached */
@@ -62,21 +68,27 @@ static uint32_t pow_scaled(uint32_t t, uint8_t exp) {
 /* ── 3-stage factor computation ─────────────────────────────── */
 
 static uint32_t compute_factor(const struct accel_3s_config *cfg, uint32_t cps) {
-    /* Zone 1: Deceleration (0 → speed_low) */
-    if (cfg->speed_low > 0 && cps < cfg->speed_low) {
-        uint32_t t = (uint32_t)((uint64_t)cps * SCALE / cfg->speed_low);
+    /* Zone A: Low flat (0 → speed_flat_low) */
+    if (cfg->speed_flat_low > 0 && cps < cfg->speed_flat_low) {
+        return cfg->min_factor;
+    }
+
+    /* Zone B: Deceleration / ramp (speed_flat_low → speed_low) */
+    if (cfg->speed_low > cfg->speed_flat_low && cps < cfg->speed_low) {
+        uint32_t range = cfg->speed_low - cfg->speed_flat_low;
+        uint32_t t = (uint32_t)((uint64_t)(cps - cfg->speed_flat_low) * SCALE / range);
         uint32_t shaped = pow_scaled(t, cfg->decel_exponent);
         int32_t span = (int32_t)cfg->mid_factor - (int32_t)cfg->min_factor;
         return (uint32_t)((int32_t)cfg->min_factor +
                           (int32_t)((int64_t)span * shaped / SCALE));
     }
 
-    /* Zone 2: Flat (speed_low → speed_high) */
+    /* Zone C: Mid flat (speed_low → speed_high) */
     if (cps <= cfg->speed_high) {
         return cfg->mid_factor;
     }
 
-    /* Zone 3: Acceleration (speed_high → speed_max) */
+    /* Zone D: Acceleration (speed_high → speed_max) */
     if (cps >= cfg->speed_max) {
         return cfg->max_factor;
     }
@@ -193,6 +205,7 @@ static const struct zmk_input_processor_driver_api accel_3s_api = {
         .min_factor = DT_INST_PROP(inst, min_factor),                            \
         .mid_factor = DT_INST_PROP(inst, mid_factor),                            \
         .max_factor = DT_INST_PROP(inst, max_factor),                            \
+        .speed_flat_low = DT_INST_PROP_OR(inst, speed_flat_low, 0),              \
         .speed_low = DT_INST_PROP(inst, speed_low),                              \
         .speed_high = DT_INST_PROP(inst, speed_high),                            \
         .speed_max = DT_INST_PROP(inst, speed_max),                              \
